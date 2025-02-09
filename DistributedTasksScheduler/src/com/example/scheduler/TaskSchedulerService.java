@@ -10,6 +10,10 @@ public class TaskSchedulerService {
         new Thread(() -> {
             while (true) {
                 try {
+
+
+                     List<Task> pendingTasks = getAllPendingTasks(); //Fetch all pending tasks
+                    AutoScaler.scaleWorkers(pendingTasks.size());  //Adjust worker nodes dynamically
                     Task task = fetchNextTask();
                     if (task != null && canExecuteTask(task.getId())) {
                         assignTask(task);
@@ -118,4 +122,26 @@ public class TaskSchedulerService {
             System.err.println("Error incrementing retry count: " + e.getMessage());
         }
     }
+     public List<Task> getAllPendingTasks() throws SQLException {
+        List<Task> tasks = new ArrayList<>();
+        String sql = "SELECT * FROM tasks WHERE status = 'PENDING' ORDER BY created_at";
+        
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            
+            while (rs.next()) {
+                tasks.add(new Task(
+                    rs.getInt("id"),
+                    rs.getString("name"),
+                    rs.getString("status"),
+                    rs.getInt("retry_count"),
+                    rs.getString("worker_name")
+                   
+                ));
+            }
+        }
+        return tasks;
+    }
+    
 }
